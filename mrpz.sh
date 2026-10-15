@@ -541,16 +541,20 @@ fi
 printf "${MAGENTA}%-20s:${NC}${CYAN}%s${NC}\n" "Hardware Type" "${HARDTYPE} (${PLATFORM})"
 printf "${MAGENTA}%-20s:${NC}${CYAN}%s${NC}\n" "Date/Time" "${SYSTEMTIME}"
 
+if command -v java >/dev/null 2>&1; then
+    local JAVA_RAW_OUTPUT=""
+    local JAVA_OUTPUT=""
 
+    if JAVA_RAW_OUTPUT=$(java -version 2>&1); then
+        JAVA_OUTPUT=$(sed -n 's/.*version "\([^"]*\)".*/\1/p' <<< "$JAVA_RAW_OUTPUT")
 
-local JAVA_OUTPUT=$(java -version 2>&1 | sed -n 's/.*version "\(.*\)"/\1/p')
-local JAVA_EXIT_STATUS=$?
-
-if [ "${JAVA_EXIT_STATUS}" -eq 0 ]; then
-	printf "${MAGENTA}%-20s:${NC}${YELLOW}%s- ${NC}${YELLOW}%s${NC} ${YELLOW}%s${NC}\n" "Java" "!!ATTN!!" "Java version:" "${JAVA_OUTPUT}"
-else
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Java" "!!Bad!!" "Java isn't installed"
-fi
+        printf "${MAGENTA}%-20s:${NC}${YELLOW}%s- ${NC}${YELLOW}%s${NC} ${YELLOW}%s${NC}\n" \
+            "Java" "!!ATTN!!" "Java version:" "${JAVA_OUTPUT:-Unknown (version could not be parsed)}"
+    else
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" \
+            "Java" "!!BAD!!" "Java exists, but 'java -version' failed"
+    fi  
+fi 
 
 local FILE="/etc/scc/Run.ascenv"
 
@@ -1133,61 +1137,51 @@ else
     printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Journal Persistence" "!!BAD!!" "Journal files does not exist/persist Run'bash mrpz.sh --journalfix'"
 fi
 
-if command -v firewall-cmd &>/dev/null; then 
-    if richapp_check >/dev/null 2>&1; then
-        if firewall-cmd --list-rich-rules 2>/dev/null | grep -q 'rule'; then
-            printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Rich Rules" "!!GOOD!!" "Has rich rules"
-        else
-            printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Rich Rules" "!!BAD!!" "No firewall rich rules 'firewall-cmd --list-rich-rules'"
-        fi
-    fi
-else
-    printf "${MAGENTA}%-20s:${NC}${YELLOW}%s- ${NC}${YELLOW}%s${NC}\n" "Rich Rules" "!!ATTN!!" "Firewall-cmd does not exist"
-fi
+if systemctl list-unit-files --type=service --no-legend --no-pager oracle.service 2>/dev/null | grep -q '^oracle\.service[[:space:]]'; then
+    local threshold=${1:-70}
+    local total_mem=$(free -m | awk '/^Mem:/ {print $2}')
+    local hugepages=$(sysctl -n vm.nr_hugepages)
+    local hugepage_size_kb=$(grep Hugepagesize /proc/meminfo | awk '{print $2}')
+    local hugepages_mem=$(( hugepages * hugepage_size_kb / 1024 ))
+    local percent
 
-local threshold=${1:-70}
-local total_mem=$(free -m | awk '/^Mem:/ {print $2}')
-local hugepages=$(sysctl -n vm.nr_hugepages)
-local hugepage_size_kb=$(grep Hugepagesize /proc/meminfo | awk '{print $2}')
-local hugepages_mem=$(( hugepages * hugepage_size_kb / 1024 ))
-
-if [ "$total_mem" -gt 0 ]; then
-            local percent=$(awk -v h="$hugepages_mem" -v t="$total_mem" 'BEGIN {printf "%.2f", (h/t)*100}')
+    if [ "$total_mem" -gt 0 ]; then
+        percent=$(awk -v h="$hugepages_mem" -v t="$total_mem" 'BEGIN {printf "%.2f", (h/t)*100}')
     else
-            local percent=0
-fi
+        percent=0
+    fi  # Closes the percentage calculation.
 
-local percent_int=${percent%.*}
+    local percent_int=${percent%.*}
 
-if [ "$percent_int" -ge "$threshold" ]; then
-    printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Hugepage Usage" "!!BAD!!" "HugePages consume ${percent}% of total memory (>= ${threshold}%) (Percentage: $percent_int)"
-else
-	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Hugepage Usage" "!!GOOD!!" "HugePages usage is below ${threshold}% (Percentage: $percent_int)"
-fi
+    if [ "$percent_int" -ge "$threshold" ]; then
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" \
+            "Hugepage Usage" "!!BAD!!" \
+            "HugePages consume ${percent}% of total memory (>= ${threshold}%) (Percentage: $percent_int)"
+    else
+        printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" \
+            "Hugepage Usage" "!!GOOD!!" \
+            "HugePages usage is below ${threshold}% (Percentage: $percent_int)"
+    fi  # Closes the usage threshold check.
 
-local process_oralsnr=$(ps -ef | grep lsnr | grep -v grep | wc -l)
-local runtimehuge=${hugepages}
-local oradb=false
-local persisthuge=$(grep -rhi "^vm.nr_hugepages" /etc/sysctl.conf /etc/sysctl.d/*.conf 2>/dev/null | tail -1 | awk -F = '{print $2}')
-runtimehuge=${runtimehuge//[[:space:]]/}
-persisthuge=${persisthuge//[[:space:]]/}
-runtimehuge=${runtimehuge:-0}
-persisthuge=${persisthuge:-0}
-if [ "${process_oralsnr}" -ne 0 ]; then
-  oradb=true
-fi
+    local runtimehuge=${hugepages}
+    local persisthuge=$(grep -rhi "^vm.nr_hugepages" /etc/sysctl.conf /etc/sysctl.d/*.conf 2>/dev/null | tail -1 | awk -F = '{print $2}')
 
-if [ "$oradb" = true ]; then
-	if [ "${runtimehuge}" = 0 ] || [ "${persisthuge}" = 0 ]; then
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Hugepage In Mem" "!!BAD!!" "One of the values is set to zero"
-	elif [ "${runtimehuge}" -ne "${persisthuge}" ] ; then
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Hugepage In Mem" "!!BAD!!" "There is a persist/run-time mismatch"
-	else
-	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Hugepage In Mem" "!!GOOD!!" "Persist/run-time are not zero & are ="
-	fi
-else
-    printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Hugepage In Mem" "!!GOOD!!" "This is not a database server"
-fi
+    runtimehuge=${runtimehuge//[[:space:]]/}
+    persisthuge=${persisthuge//[[:space:]]/}
+    runtimehuge=${runtimehuge:-0}
+    persisthuge=${persisthuge:-0}
+
+    if [ "${runtimehuge}" = 0 ] || [ "${persisthuge}" = 0 ]; then
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" \
+            "Hugepage In Mem" "!!BAD!!" "One of the values is set to zero"
+    elif [ "${runtimehuge}" -ne "${persisthuge}" ]; then
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" \
+            "Hugepage In Mem" "!!BAD!!" "There is a persist/run-time mismatch"
+    else
+        printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" \
+            "Hugepage In Mem" "!!GOOD!!" "Persist/run-time are not zero & are ="
+    fi  
+fi      
 
 if systemctl list-unit-files --type=service --no-legend --no-pager oracle.service 2>/dev/null | grep -q '^oracle\.service[[:space:]]'; then
     local THP_OUTPUT=""
