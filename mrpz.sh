@@ -785,28 +785,36 @@ else
 	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Kernel Age" "!!GOOD!!" "Kernel < 6 months ${KERNELDATE}"
 fi
 
-if systemctl is-active --quiet sccmain.service 2>/dev/null; then
-	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Sccmain Status" "!!GOOD!!" "Running"
-else
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Sccmain Status" "!!BAD!!" "Not Running/installed"
+if systemctl list-unit-files --type=service --no-legend 2>/dev/null | grep -q '^sccmain\.service '; then
+    if systemctl is-active --quiet sccmain.service 2>/dev/null; then
+        printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Sccmain Status" "!!GOOD!!" "Running"
+    else
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Sccmain Status" "!!BAD!!" "Not Running"
+    fi
 fi
 
-if systemctl is-active --quiet oracle.service 2>/dev/null; then
-	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Oracle Status" "!!GOOD!!" "Running"
-else
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Oracle Status" "!!BAD!!" "Not Running/installed"
+if systemctl list-unit-files --type=service --no-legend 2>/dev/null | grep -q '^oracle\.service '; then
+    if systemctl is-active --quiet oracle.service 2>/dev/null; then
+        printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Oracle Status" "!!GOOD!!" "Running"
+    else
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Oracle Status" "!!BAD!!" "Not Running"
+    fi
 fi
 
-if systemctl is-enabled --quiet sccmain.service 2>/dev/null; then
-	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Sccmain (Reboot)" "!!GOOD!!" "Survives reboot"
-else
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Sccmain (Reboot)" "!!BAD!!" "Does not survive reboot"
+if systemctl list-unit-files --type=service --no-legend 2>/dev/null | grep -q '^sccmain\.service '; then
+    if systemctl is-enabled --quiet sccmain.service 2>/dev/null; then
+        printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Sccmain (Reboot)" "!!GOOD!!" "Survives reboot"
+    else
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Sccmain (Reboot)" "!!BAD!!" "Does not survive reboot"
+    fi
 fi
 
-if systemctl is-enabled --quiet oracle.service 2>/dev/null; then
-	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Oracle (Reboot)" "!!GOOD!!" "Survives reboot"
-else
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Oracle (Reboot)" "!!BAD!!" "Does not survive reboot"
+if systemctl list-unit-files --type=service --no-legend 2>/dev/null | grep -q '^oracle\.service '; then
+    if systemctl is-enabled --quiet oracle.service 2>/dev/null; then
+        printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Oracle (Reboot)" "!!GOOD!!" "Survives reboot"
+    else
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Oracle (Reboot)" "!!BAD!!" "Does not survive reboot"
+    fi
 fi
 
 if ! rpm -q rng-tools &>/dev/null; then
