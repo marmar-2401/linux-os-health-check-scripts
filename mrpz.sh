@@ -1324,6 +1324,8 @@ else
         "Swap is less than ${SWAP_MIN_GB} GB (Size:${SWAP_GB} GB)"
 fi
 
+if [[ "${HARDTYPE}" == "Oracle" && "${PLATFORM}" == "Cloud" ]]; then
+
 local JDK_CONFIG=""
 local ACTUAL_EXCLUDE=""
 
@@ -1358,6 +1360,8 @@ else
             "!!BAD!!" \
             "No JDK exclusion pattern was found in $JDK_CONFIG (Run 'bash mrpz.sh --jdkexcludefix')"
     fi
+fi
+
 fi
 
 superuser=$(grep -i "set superusers" /boot/grub2/grub.cfg 2>/dev/null | awk -F'"' '{print $2}')
