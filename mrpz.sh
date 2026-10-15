@@ -1189,12 +1189,27 @@ else
     printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Hugepage In Mem" "!!GOOD!!" "This is not a database server"
 fi
 
+if systemctl list-unit-files --type=service --no-legend --no-pager oracle.service 2>/dev/null | grep -q '^oracle\.service[[:space:]]'; then
+    local THP_OUTPUT=""
+    local THP_FIRST_WORD=""
 
-if cat /sys/kernel/mm/transparent_hugepage/enabled | grep -q "\[never\]"; then
-	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "Transparent Hugepage" "!!GOOD!!" "[never] present"
-else
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Transparent Hugepage" "!!BAD!!" "[never] missing"
-fi
+    THP_OUTPUT=$(cat /sys/kernel/mm/transparent_hugepage/enabled 2>/dev/null) || THP_OUTPUT=""
+
+    if [[ -z "$THP_OUTPUT" ]]; then
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" \
+            "Transparent Hugepage" "!!BAD!!" "Unable to read the Transparent Hugepage setting"
+
+    elif grep -Fq '[never]' <<< "$THP_OUTPUT"; then
+        printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" \
+            "Transparent Hugepage" "!!GOOD!!" "[never] present"
+
+    else
+        THP_FIRST_WORD=$(awk '{print $1; exit}' <<< "$THP_OUTPUT")
+
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" \
+            "Transparent Hugepage" "!!BAD!!" "[never] missing (First word: ${THP_FIRST_WORD})"
+    fi 
+fi     
 
 if [[ "${HARDTYPE}" == "AWS" && "${OSTYPE}" == *"Red Hat Enterprise Linux"* ]]; then	
 	local RHEL_AWS_HARDSET="/etc/yum/vars/releasever"
