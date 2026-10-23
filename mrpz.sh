@@ -569,13 +569,21 @@ if command -v java >/dev/null 2>&1; then
     fi  
 fi 
 
-local FILE="/etc/scc/Run.ascenv"
+local SCC_USER
+SCC_USER=$(awk -F: 'tolower($1) ~ /scc/ && tolower($1) != "sccadm" { print $1; exit }' /etc/passwd)
 
-if [ -f "${FILE}" ]; then
-	local FILE_CONTENT="$(cat "${FILE}" | grep -i scc | awk '{print $1}' | tr '\n' ' ')"
-	printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}${CYAN}%s${NC}\n" "ascenv Startup" "!!Good!!" "Entries in /etc/scc/Run.ascenv:" "${FILE_CONTENT}"
-else
-	printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "ascenv Startup" "!!Bad!!" "No entries in /etc/scc/Run.ascenv"
+if [ -n "${SCC_USER}" ]; then
+	local FILE="/etc/scc/Run.ascenv"
+
+	if [ -f "${FILE}" ]; then
+		local FILE_CONTENT
+		FILE_CONTENT=$(grep -i scc "${FILE}" | awk '{print $1}' | tr '\n' ' ')
+		printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}${CYAN}%s${NC}\n" \
+			"ascenv Startup" "!!Good!!" "Entries in /etc/scc/Run.ascenv:" "${FILE_CONTENT}"
+	else
+		printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" \
+			"ascenv Startup" "!!Bad!!" "No entries in /etc/scc/Run.ascenv"
+	fi
 fi
 
 local MEMPERCENT SWAPPERCENT
