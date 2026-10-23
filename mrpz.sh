@@ -312,6 +312,7 @@ printf "${GREEN}Fix is complete!!!${NC}\n"
 }
 
 fix_exports() {
+    confirm_action
     local backup="/etc/exports.bkp.$(date +%Y%m%d_%H%M%S_%N)"
 
     if cp -p /etc/exports "$backup" && : > /etc/exports; then
@@ -1264,10 +1265,12 @@ elif [[ "${OSTYPE}" == *"Red Hat Enterprise Linux"* ]]; then
 	
 fi
 
-if [ -s /etc/exports ]; then
-    printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "/etc/exports" "!!BAD!!" "/etc/exports has size run 'bash mrpz.sh --exportfix'"
-else
-    printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "/etc/exports" "!!GOOD!!" "/etc/exports is zeroed"
+if [[ "${HARDTYPE}" == "Oracle" && "${PLATFORM}" == "Cloud" ]]; then
+    if [ -s /etc/exports ]; then
+        printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "/etc/exports" "!!BAD!!" "/etc/exports has size run 'bash mrpz.sh --exportfix'"
+    else
+        printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "/etc/exports" "!!GOOD!!" "/etc/exports is zeroed"
+    fi
 fi
 
 local unlabeledcontext=$(ls -lZ / | grep -i unlabeled | wc -l)
