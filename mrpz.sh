@@ -546,7 +546,7 @@ printf "${CYAN}|     LINUX OS Checker     |${NC}\n"
 printf "${CYAN}|--------------------------|${NC}\n"
 printf "${MAGENTA}%-20s:${NC}${CYAN}%s${NC}\n" "Hostname" "${HOSTNAME}"
 if [[ "${HARDTYPE}" == "AWS" && "${OSTYPE}" == *"Red Hat Enterprise Linux"* ]]; then
-	local AWSRHELRELEASE=$(cat /etc/os-release)
+	local AWSRHELRELEASE=$(awk -F'"' '/^PRETTY_NAME=/ {print $2; exit}' /etc/os-release)
 	printf "${MAGENTA}%-20s:${NC}${CYAN}%s${NC}\n" "Operating System" "${AWSRHELRELEASE}"
 else	
 	printf "${MAGENTA}%-20s:${NC}${CYAN}%s${NC}\n" "Operating System" "${OSTYPE}"
