@@ -98,7 +98,7 @@ check_sccadm_group() {
 
 print_version() {
 printf "\n${CYAN}         ################${NC}\n"
-printf "${CYAN}         ## Ver: 1.3.5 ##${NC}\n"
+printf "${CYAN}         ## Ver: 1.3.6 ##${NC}\n"
 printf "${CYAN}         ################${NC}\n"
 printf "${CYAN}=====================================${NC}\n"
 printf "${CYAN} __   __   ____    _____    _____ ${NC}\n"
@@ -149,6 +149,7 @@ printf "${MAGENTA} 1.3.2 | 08/04/2026 | - Added --diskcheck option for detailed 
 printf "${MAGENTA} 1.3.3 | 09/02/2026 | - Added logic for one-click context and selinux issues ${NC}\n"
 printf "${MAGENTA} 1.3.4 | 09/24/2026 | - Preserve hostname check was added ${NC}\n"
 printf "${MAGENTA} 1.3.5 | 10/02/2026 | - Journal persistence checker along with fix script added ${NC}\n"
+printf "${MAGENTA} 1.3.6 | 10/23/2026 | - /etc/export checker and fix created  ${NC}\n"
 }
 
 print_help() {
@@ -176,6 +177,7 @@ printf "${YELLOW}--coredumpfix${NC}	# Corrects coredump permissions\n\n"
 printf "${YELLOW}--jdkexcludefix${NC} # Creates the jdk exclusion\n\n"
 printf "${YELLOW}--disablejdkfix${NC} # Removes the jdk exclusion\n\n"
 printf "${YELLOW}--journalfix${NC} # Makes sure journal file exists and is persistent\n\n"
+printf "${YELLOW}--exportfix${NC} # Clean slates the /etc/exports\n\n"
 printf "\n${MAGENTA}Problem Description Section:${NC}\n"
 printf "${YELLOW}--auditdisc${NC}	# Description for misconfigured audit rules\n\n"
 printf "${YELLOW}--listndisc${NC}	# Description for oracle listener issues\n\n"
@@ -307,6 +309,17 @@ fi
 
 sudo sysctl -p "$SYSCTL_FILE"
 printf "${GREEN}Fix is complete!!!${NC}\n"
+}
+
+fix_exports() {
+    local backup="/etc/exports.bkp.$(date +%Y%m%d_%H%M%S_%N)"
+
+    if cp -p /etc/exports "$backup" && : > /etc/exports; then
+        echo "good - /etc/exports emptied. Backup saved to: $backup"
+    else
+        echo "bad - failed to back up or empty /etc/exports"
+        return 1
+    fi
 }
 
 print_harddetect() {
@@ -1241,6 +1254,12 @@ elif [[ "${OSTYPE}" == *"Red Hat Enterprise Linux"* ]]; then
     		printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "Subscription Manager" "!!BAD!!" "Subscription issues (unknown reason)"
 	fi
 	
+fi
+
+if [ -s /etc/exports ]; then
+    printf "${MAGENTA}%-20s:${NC}${RED}%s - ${NC}${YELLOW}%s${NC}\n" "/etc/exports" "!!BAD!!" "/etc/exports has size run 'bash mrpz.sh --exportfix'"
+else
+    printf "${MAGENTA}%-20s:${NC}${GREEN}%s- ${NC}${YELLOW}%s${NC}\n" "/etc/exports" "!!GOOD!!" "/etc/exports is zeroed"
 fi
 
 local unlabeledcontext=$(ls -lZ / | grep -i unlabeled | wc -l)
@@ -2293,6 +2312,7 @@ case "$1" in
 	--disablejdkfix) print_disablejdkfix ;;
 	--baddotsshcontext) print_baddotsshcontext ;;
 	--journalfix) fix_persistent_journal ;;
+	--exportfix) fix_exports ;;
 *)
 printf "${RED}Error:${NC} Unknown Option Ran With Script ${RED}Option Entered: ${NC}$1\n"
 printf "${GREEN}Run 'bash mrpz.sh --help' To Learn Usage ${NC} \n"
